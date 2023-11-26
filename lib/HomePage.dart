@@ -2,6 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:face_mask_detector/main.dart';
+import 'package:tflite_v2/tflite_v2.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -30,16 +31,54 @@ class _HomePageState extends State<HomePage> {
             {
               isWorking=true,
               imgCamera=imageFromStream,
+              RunModelOnFrame(),
             }
         });
       });
     });
+  }
+  loadModel() async{
+    await Tflite.loadModel(
+        model: 'Assets/model_unquant.tflite',
+        labels: 'Assets/labels.txt',
+    );
+  }
+  RunModelOnFrame() async{
+    if(imgCamera!=null)
+      {
+        var recognitions=await Tflite.runModelOnFrame(
+            bytesList: imgCamera.planes.map((plane)
+            {
+              return plane.bytes;
+            }).toList(),
+          imageHeight: imgCamera.height,
+          imageWidth: imgCamera.width,
+          imageMean: 127.5,
+          rotation: 90,
+          numResults: 1,
+          threshold: 0.1,
+          asynch: true,
+
+            );
+          result= "";
+          recognitions?.forEach((response)
+          {
+            result+=response["label"]+"\n";
+          });
+
+          setState(() {
+            result;
+          });
+
+          isWorking=false;
+      }
   }
   @override
   void initState() {
 
     super.initState();
     initCamera();
+    loadModel();
   }
 
   @override
@@ -54,7 +93,13 @@ class _HomePageState extends State<HomePage> {
               padding: EdgeInsets.only(top: 40.0),
               child: Center(
                 child: Text(
-                  "",
+                  result,
+                  style: TextStyle(
+                    backgroundColor: Colors.black54,
+                    fontSize: 30,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
